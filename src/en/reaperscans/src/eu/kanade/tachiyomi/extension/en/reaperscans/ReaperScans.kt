@@ -64,12 +64,8 @@ class ReaperScans : ParsedHttpSource(), UserAgentModifier {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
-    override val hasUaIntercept by lazy {
-        client.interceptors.toString().contains("UserAgentInterceptor")
-    }
-
     override val client: OkHttpClient = network.cloudflareClient.newBuilder()
-        .addInterceptor(::uaInterceptor)
+        .addInterceptor(uaInterceptor())
         .rateLimit(1, 2, TimeUnit.SECONDS)
         .build()
 

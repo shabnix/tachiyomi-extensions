@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.lib.useragentmodifier
 import android.content.SharedPreferences
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.source.ConfigurableSource
+import okhttp3.OkHttpClient
 
 interface UserAgentModifier : ConfigurableSource {
     /**
@@ -11,10 +12,9 @@ interface UserAgentModifier : ConfigurableSource {
     val preferences: SharedPreferences
 
     /**
-     * The client should be used to obtain this property.
-     * Use: client.interceptors.toString().contains("UserAgentInterceptor")
+     * Override this property with the client of the source.
      */
-    val hasUaIntercept: Boolean
+    val client: OkHttpClient
 
     /**
      * Override this property with the value null.

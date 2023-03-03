@@ -19,67 +19,73 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
 
-fun UserAgentModifier.uaInterceptor(chain: Interceptor.Chain): Response {
+fun UserAgentModifier.uaInterceptor(): Interceptor {
     val useRandomUa = preferences.getBoolean(PREF_KEY_RANDOM_UA, false)
     val customUa = preferences.getString(PREF_KEY_CUSTOM_UA, "")
 
-    try {
-        if (hasUaIntercept && (useRandomUa || customUa!!.isNotBlank())) {
-            Log.i(
-                "Extension_setting",
-                "$TITLE_RANDOM_UA or $TITLE_CUSTOM_UA option is ENABLED",
-            )
+    val interceptor = object : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            try {
+                if (hasUaInterceptor() && (useRandomUa || customUa!!.isNotBlank())) {
+                    Log.i("Extension_setting", "$TITLE_RANDOM_UA or $TITLE_CUSTOM_UA option is ENABLED")
 
-            if (customUa!!.isNotBlank() && useRandomUa.not()) {
-                userAgent = customUa
-            }
-
-            if (userAgent.isNullOrBlank() && !checkedUa) {
-                val uaResponse = chain.proceed(GET(UA_DB_URL))
-
-                if (uaResponse.isSuccessful) {
-                    var listUserAgentString =
-                        Json.decodeFromString<Map<String, List<String>>>(uaResponse.body.string())["desktop"]
-
-                    if (filterIncludeUserAgent.isNotEmpty()) {
-                        listUserAgentString = listUserAgentString!!.filter {
-                            filterIncludeUserAgent.any { filter ->
-                                it.contains(filter, ignoreCase = true)
-                            }
-                        }
+                    if (customUa!!.isNotBlank() && useRandomUa.not()) {
+                        userAgent = customUa
                     }
-                    if (filterExcludeUserAgent.isNotEmpty()) {
-                        listUserAgentString = listUserAgentString!!.filterNot {
-                            filterExcludeUserAgent.any { filter ->
-                                it.contains(filter, ignoreCase = true)
+
+                    if (userAgent.isNullOrBlank() && !checkedUa) {
+                        val uaResponse = chain.proceed(GET(UA_DB_URL))
+
+                        if (uaResponse.isSuccessful) {
+                            var listUserAgentString =
+                                Json.decodeFromString<Map<String, List<String>>>(uaResponse.body.string())["desktop"]
+
+                            if (filterIncludeUserAgent.isNotEmpty()) {
+                                listUserAgentString = listUserAgentString!!.filter {
+                                    filterIncludeUserAgent.any { filter ->
+                                        it.contains(filter, ignoreCase = true)
+                                    }
+                                }
                             }
+                            if (filterExcludeUserAgent.isNotEmpty()) {
+                                listUserAgentString = listUserAgentString!!.filterNot {
+                                    filterExcludeUserAgent.any { filter ->
+                                        it.contains(filter, ignoreCase = true)
+                                    }
+                                }
+                            }
+                            userAgent = listUserAgentString!!.random()
+                            checkedUa = true
                         }
+
+                        uaResponse.close()
                     }
-                    userAgent = listUserAgentString!!.random()
-                    checkedUa = true
+
+                    if (userAgent.isNullOrBlank().not()) {
+                        val newRequest = chain.request().newBuilder()
+                            .header("User-Agent", userAgent!!.trim())
+                            .build()
+
+                        return chain.proceed(newRequest)
+                    }
                 }
 
-                uaResponse.close()
-            }
-
-            if (userAgent.isNullOrBlank().not()) {
-                val newRequest = chain.request().newBuilder()
-                    .header("User-Agent", userAgent!!.trim())
-                    .build()
-
-                return chain.proceed(newRequest)
+                return chain.proceed(chain.request())
+            } catch (e: Exception) {
+                throw IOException(e.message)
             }
         }
-
-        return chain.proceed(chain.request())
-    } catch (e: Exception) {
-        throw IOException(e.message)
     }
+    return interceptor
 }
 
 fun UserAgentModifier.addRandomAndCustomUserAgentPreferences(screen: PreferenceScreen) {
-    if (!hasUaIntercept) {
-        return // Unable to change the user agent. Therefore the preferences won't be displayed.
+    if (!hasUaInterceptor()) {
+        Log.i(
+            "Extension_setting",
+            "The source implemented the UserAgentModifier, but the client lacks the UserAgentInterceptor"
+        )
+        return // Unable to modify the user agent. Therefore the preferences won't be displayed.
     }
 
     val prefRandomUserAgent = SwitchPreferenceCompat(screen.context).apply {
@@ -128,6 +134,10 @@ fun UserAgentModifier.addRandomAndCustomUserAgentPreferences(screen: PreferenceS
 
     screen.addPreference(prefRandomUserAgent)
     screen.addPreference(prefCustomUserAgent)
+}
+
+fun UserAgentModifier.hasUaInterceptor() : Boolean {
+    return client.interceptors.toString().contains(::uaInterceptor.name)
 }
 
 object UserAgentModifierConstants {
