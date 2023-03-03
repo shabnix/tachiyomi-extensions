@@ -1,5 +1,9 @@
 package eu.kanade.tachiyomi.extension.en.reaperscans
 
+import android.app.Application
+import android.content.SharedPreferences
+import eu.kanade.tachiyomi.lib.useragentmodifier.UserAgentModifier
+import eu.kanade.tachiyomi.lib.useragentmodifier.uaInterceptor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
@@ -31,12 +35,14 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import rx.Observable
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
-class ReaperScans : ParsedHttpSource() {
+class ReaperScans : ParsedHttpSource(), UserAgentModifier {
 
     override val name = "Reaper Scans"
 
@@ -50,7 +56,20 @@ class ReaperScans : ParsedHttpSource() {
 
     private val json: Json by injectLazy()
 
+    override var userAgent: String? = null
+
+    override var checkedUa = false
+
+    override val preferences: SharedPreferences by lazy {
+        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+    }
+
+    override val hasUaIntercept by lazy {
+        client.interceptors.toString().contains("UserAgentInterceptor")
+    }
+
     override val client: OkHttpClient = network.cloudflareClient.newBuilder()
+        .addInterceptor(::uaInterceptor)
         .rateLimit(1, 2, TimeUnit.SECONDS)
         .build()
 
