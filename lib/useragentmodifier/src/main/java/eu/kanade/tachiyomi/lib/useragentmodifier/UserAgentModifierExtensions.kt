@@ -83,7 +83,7 @@ fun UserAgentModifier.addRandomAndCustomUserAgentPreferences(screen: PreferenceS
     if (!hasUaInterceptor()) {
         Log.i(
             "Extension_setting",
-            "The source implemented the UserAgentModifier, but the client lacks the UserAgentInterceptor"
+            "The source implemented the UserAgentModifier, but the client lacks the uaInterceptor"
         )
         return // Unable to modify the user agent. Therefore the preferences won't be displayed.
     }
