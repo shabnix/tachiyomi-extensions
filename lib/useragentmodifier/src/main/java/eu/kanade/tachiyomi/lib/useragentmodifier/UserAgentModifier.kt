@@ -50,7 +50,7 @@ interface UserAgentModifier : ConfigurableSource {
         get() = listOf()
 
     /**
-     * This methods overrides ConfigurableSource interface to add preferences to set a custom and random user agent by default.
+     * This methods overrides the ConfigurableSource interface to add the options to set a custom and random user agent.
      * AddRandomAndCustomUserAgentPreferences() should be called from inside the method when this one is overridden.
      */
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
